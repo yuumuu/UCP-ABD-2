@@ -368,7 +368,7 @@ END;
 GO
 
 -- mengaktifkan statistik IO dan waktu
-SET TRANSACTION IO ON;
+SET STATISTICS IO ON;
 SET STATISTICS TIME ON;
 
 -- mencari mahasiswa dengan jurusan 'Teknologi Informasi'
@@ -379,7 +379,7 @@ CREATE INDEX IDX_Nama ON Mahasiswa (Name);
 GO
 
 -- mengaktifkan statistik IO dan waktu
-SET TRANSACTION IO ON;
+SET STATISTICS IO ON;
 SET STATISTICS TIME ON;
 
 SELECT MahasiswaID, Name FROM Mahasiswa
