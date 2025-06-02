@@ -316,7 +316,7 @@ BEGIN TRY
 	END
 	
 	-- mengecek apakah NIP guru sudah terdaftar
-	IF LEN(@NIP) != 30
+	IF LEN(@NIP) >= 30
 	BEGIN
 		IF EXISTS (SELECT 1 FROM Masters.Guru WHERE NIP = @NIP)
 		BEGIN
@@ -349,7 +349,6 @@ BEGIN CATCH
 END CATCH;
 
 -- Isolation
--- 
 BEGIN TRY
 	-- Setting isolation level dan transaksi
 	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
@@ -621,11 +620,7 @@ FROM Transactions.Jadwal
 WHERE Hari = 'Senin'
   AND CAST(JamMulai AS TIME) < '09:00:00';
 
--- =============================================
--- MONITORING PERFORMA DATABASE SQL SERVER
--- =============================================
-
--- 1. Query berat berdasar rata-rata waktu eksekusi
+-- Query berat berdasar rata-rata waktu eksekusi
 SELECT TOP 5
     qs.total_elapsed_time / qs.execution_count AS AvgExecTime,
     qs.execution_count,
@@ -634,7 +629,7 @@ FROM sys.dm_exec_query_stats qs
 CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt
 ORDER BY AvgExecTime DESC;
 
--- 2. Statistik I/O file database
+-- Statistik I/O file database
 SELECT
     DB_NAME(database_id) AS DatabaseName,
     file_id,
@@ -644,12 +639,12 @@ SELECT
     num_of_writes
 FROM sys.dm_io_virtual_file_stats(NULL, NULL);
 
--- 3. Aktivitas disk terkait I/O wait stats
+-- Aktivitas disk terkait I/O wait stats
 SELECT *
 FROM sys.dm_os_wait_stats
 WHERE wait_type LIKE 'PAGEIOLATCH%';
 
--- 4. Statistik index pada tabel Mapel
+-- Statistik index pada tabel Mapel
 SELECT 
     OBJECT_NAME(s.object_id) AS TableName,
     i.name AS IndexName,
@@ -663,7 +658,7 @@ WHERE OBJECT_NAME(s.object_id) = 'Mapel'
   AND s.database_id = DB_ID()
 ORDER BY s.user_seeks DESC;
 
--- 5. Data absensi Maret-April 2024
+-- Data absensi Maret-April 2024
 SELECT 
     A.AbsensiID, 
     G.NamaLengkap, 
@@ -676,3 +671,11 @@ JOIN Masters.Guru G ON J.GuruID = G.GuruID
 JOIN Masters.Mapel M ON J.MapelID = M.MapelID
 WHERE A.Tanggal BETWEEN '2024-03-01' AND '2024-04-30';
 
+-- ngeliatin semua data
+SELECT * FROM Masters.[User];
+SELECT * FROM Masters.Guru;
+SELECT * FROM Masters.Mapel;
+SELECT * FROM Masters.Kelas;
+SELECT * FROM Transactions.Jadwal;
+SELECT * FROM Transactions.Absensi;
+SELECT * FROM AuditLogs;
