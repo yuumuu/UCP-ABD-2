@@ -416,11 +416,16 @@ BEGIN TRY
 
     WAITFOR DELAY '00:00:10'; -- Simulasi waktu transaksi berjalan
 
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'SUCCESS', 'SELECT', 'Transaksi A READ UNCOMMITTED selesai', SUSER_SNAME());
+
     COMMIT;
 END TRY
 BEGIN CATCH
     PRINT 'Terjadi kesalahan, melakukan rollback...';
     ROLLBACK;
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'ERROR', 'SELECT', 'Transaksi A READ UNCOMMITTED gagal', SUSER_SNAME());
     PRINT ERROR_MESSAGE();
 END CATCH;
 
@@ -431,11 +436,16 @@ BEGIN TRY
 
     UPDATE Transactions.Absensi SET Status = 'Alfa' WHERE JadwalID = 1 AND Status = 'Hadir';
 
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'SUCCESS', 'UPDATE', 'Transaksi B READ UNCOMMITTED selesai', SUSER_SNAME());
+
     COMMIT;
 END TRY
 BEGIN CATCH
     PRINT 'Terjadi kesalahan, melakukan rollback...';
     ROLLBACK;
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'ERROR', 'UPDATE', 'Transaksi B READ UNCOMMITTED gagal', SUSER_SNAME());
     PRINT ERROR_MESSAGE();
 END CATCH;
 
@@ -449,11 +459,16 @@ BEGIN TRY
 
     WAITFOR DELAY '00:00:10';
 
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'SUCCESS', 'SELECT', 'Transaksi A READ COMMITTED selesai', SUSER_SNAME());
+
     COMMIT;
 END TRY
 BEGIN CATCH
     PRINT 'Terjadi kesalahan, melakukan rollback...';
     ROLLBACK;
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'ERROR', 'SELECT', 'Transaksi A READ COMMITTED gagal', SUSER_SNAME());
     PRINT ERROR_MESSAGE();
 END CATCH;
 
@@ -464,11 +479,16 @@ BEGIN TRY
 
     UPDATE Transactions.Absensi SET Status = 'Izin' WHERE JadwalID = 2 AND Status = 'Hadir';
 
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'SUCCESS', 'UPDATE', 'Transaksi B READ COMMITTED selesai', SUSER_SNAME());
+
     COMMIT;
 END TRY
 BEGIN CATCH
     PRINT 'Terjadi kesalahan, melakukan rollback...';
     ROLLBACK;
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'ERROR', 'UPDATE', 'Transaksi B READ COMMITTED gagal', SUSER_SNAME());
     PRINT ERROR_MESSAGE();
 END CATCH;
 
@@ -482,11 +502,16 @@ BEGIN TRY
 
     WAITFOR DELAY '00:00:10';
 
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'SUCCESS', 'SELECT', 'Transaksi A REPEATABLE READ selesai', SUSER_SNAME());
+
     COMMIT;
 END TRY
 BEGIN CATCH
     PRINT 'Terjadi kesalahan, melakukan rollback...';
     ROLLBACK;
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'ERROR', 'SELECT', 'Transaksi A REPEATABLE READ gagal', SUSER_SNAME());
     PRINT ERROR_MESSAGE();
 END CATCH;
 
@@ -497,11 +522,16 @@ BEGIN TRY
 
     DELETE FROM Transactions.Absensi WHERE JadwalID = 3 AND Status = 'Hadir';
 
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'SUCCESS', 'DELETE', 'Transaksi B REPEATABLE READ selesai', SUSER_SNAME());
+
     COMMIT;
 END TRY
 BEGIN CATCH
     PRINT 'Terjadi kesalahan, melakukan rollback...';
     ROLLBACK;
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'ERROR', 'DELETE', 'Transaksi B REPEATABLE READ gagal', SUSER_SNAME());
     PRINT ERROR_MESSAGE();
 END CATCH;
 
@@ -515,11 +545,16 @@ BEGIN TRY
 
     WAITFOR DELAY '00:00:10';
 
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'SUCCESS', 'SELECT', 'Transaksi A SERIALIZABLE selesai', SUSER_SNAME());
+
     COMMIT;
 END TRY
 BEGIN CATCH
     PRINT 'Terjadi kesalahan, melakukan rollback...';
     ROLLBACK;
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'ERROR', 'SELECT', 'Transaksi A SERIALIZABLE gagal', SUSER_SNAME());
     PRINT ERROR_MESSAGE();
 END CATCH;
 
@@ -531,11 +566,16 @@ BEGIN TRY
     INSERT INTO Transactions.Absensi (JadwalID, Tanggal, Status)
     VALUES (1, GETDATE(), 'Hadir');
 
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'SUCCESS', 'INSERT', 'Transaksi B SERIALIZABLE selesai', SUSER_SNAME());
+
     COMMIT;
 END TRY
 BEGIN CATCH
     PRINT 'Terjadi kesalahan, melakukan rollback...';
     ROLLBACK;
+    INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+    VALUES ('Transactions.Absensi', 'ERROR', 'INSERT', 'Transaksi B SERIALIZABLE gagal', SUSER_SNAME());
     PRINT ERROR_MESSAGE();
 END CATCH;
 
@@ -552,18 +592,29 @@ ORDER BY
 -- Index Guru - Clustered
 CREATE CLUSTERED INDEX IDX_Guru_NamaLengkap ON Masters.Guru (NamaLengkap);
 
+SELECT GuruID, NamaLengkap FROM Masters.Guru;
+
 -- Index Mapel - Non-Clustered
 CREATE NONCLUSTERED INDEX IDX_Mapel_Nama ON Masters.Mapel (Nama);
+
+SELECT MapelID, Nama FROM Masters.Mapel;
 
 -- Index Jadwal - Composite
 CREATE NONCLUSTERED INDEX IDX_Jadwal_Mapel_Kelas_Hari ON Transactions.Jadwal (MapelID, KelasID, Hari);
 
+SELECT JadwalID, MapelID, KelasID, Hari FROM Transactions.Jadwal;
+
 -- Index Absensi - Covering
 CREATE NONCLUSTERED INDEX IDX_Absensi_Jadwal_Tanggal ON Transactions.Absensi (JadwalID, Tanggal) INCLUDE ([Status]) ON PS_AbsensiScheme (Tanggal);
 
+SELECT AbsensiID, JadwalID, Tanggal, [Status] FROM Transactions.Absensi
+WHERE JadwalID = 1 AND Tanggal BETWEEN '2024-01-01' AND '2024-05-30';
+
 -- Index AuditLogs
-CREATE INDEX IX_AuditLogs_ChangeDate ON AuditLogs(ChangeDate);
-CREATE INDEX IX_AuditLogs_ChangedBy ON AuditLogs(ChangedBy);
+CREATE INDEX IDX_AuditLogs_ChangeDate ON AuditLogs(ChangeDate);
+CREATE INDEX IDX_AuditLogs_ChangedBy ON AuditLogs(ChangedBy);
+
+SELECT LogID, TableName, [Status], ActionType, ChangedBy, ChangeDate FROM AuditLogs;
 
 -- =============================================
 -- SKENARIO QUERY PER TABEL (Per Anggota Kelompok)
