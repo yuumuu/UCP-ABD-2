@@ -402,10 +402,7 @@ END CATCH;
 
 SELECT * FROM Masters.[User];
 
-
-
--- Isolation Level Simulation: 2 Transaksi (A & B) untuk Setiap Level
-
+----- Isolation
 -- READ UNCOMMITTED
 -- Transaksi A
 BEGIN TRY
@@ -579,14 +576,8 @@ BEGIN CATCH
     PRINT ERROR_MESSAGE();
 END CATCH;
 
-SELECT *
-FROM 
-	sys.indexes i
-	INNER JOIN sys.tables t ON i.object_id = t.object_id
-WHERE 
-	t.is_ms_shipped = 0
-ORDER BY 
-	t.name, i.name;
+SET STATISTICS IO ON;
+SET STATISTICS TIME ON;
 
 -- Monitoring & Optimasi Performa Database
 -- Index Guru - Clustered
@@ -616,40 +607,39 @@ CREATE INDEX IDX_AuditLogs_ChangedBy ON AuditLogs(ChangedBy);
 
 SELECT LogID, TableName, [Status], ActionType, ChangedBy, ChangeDate FROM AuditLogs;
 
--- =============================================
--- SKENARIO QUERY PER TABEL (Per Anggota Kelompok)
--- =============================================
+-- nampilin semua index yang ada di database RuangGuru
+SELECT *
+FROM 
+	sys.indexes i
+	INNER JOIN sys.tables t ON i.object_id = t.object_id
+WHERE 
+	t.is_ms_shipped = 0
+ORDER BY 
+	t.name, i.name;
 
--- Nim: 20240140093
--- Nama: Andhika Nurjamil
 -- Tabel yang digunakan: Transactions.Absensi
 -- Skenario: Memantau kehadiran Guru
 SELECT 
     J.GuruID, G.NamaLengkap,
-    SUM(CASE WHEN A.Status = 'Hadir' THEN 1 ELSE 0 END) AS JumlahHadir,
-    SUM(CASE WHEN A.Status = 'Sakit' THEN 1 ELSE 0 END) AS JumlahSakit,
-    SUM(CASE WHEN A.Status = 'Izin' THEN 1 ELSE 0 END) AS JumlahIzin,
-    SUM(CASE WHEN A.Status = 'Alfa' THEN 1 ELSE 0 END) AS JumlahAlfa
+    COUNT(CASE WHEN A.Status = 'Hadir' THEN 1 ELSE 0 END) AS JumlahHadir,
+    COUNT(CASE WHEN A.Status = 'Sakit' THEN 1 ELSE 0 END) AS JumlahSakit,
+    COUNT(CASE WHEN A.Status = 'Izin' THEN 1 ELSE 0 END) AS JumlahIzin,
+    COUNT(CASE WHEN A.Status = 'Alfa' THEN 1 ELSE 0 END) AS JumlahAlfa
 FROM Transactions.Absensi A
 JOIN Transactions.Jadwal J ON A.JadwalID = J.JadwalID
 JOIN Masters.Guru G ON J.GuruID = G.GuruID
 WHERE A.Tanggal BETWEEN '2010-05-01' AND '2024-05-31'
 GROUP BY J.GuruID, G.NamaLengkap;
 
--- Nim: 20240140059
--- Nama: Rangga Alfarizzy
 -- Tabel yang digunakan: Transactions.Jadwal
 -- Skenario: Memantau penjadwalan guru
-SELECT 
-    J.JadwalID, G.NamaLengkap, M.Nama AS Mapel, K.Nama AS Kelas, J.Hari, J.JamMulai, J.JamSelesai
+SELECT J.JadwalID, G.NamaLengkap, M.Nama AS Mapel, K.Nama AS Kelas, J.Hari, J.JamMulai, J.JamSelesai
 FROM Transactions.Jadwal J
 JOIN Masters.Guru G ON J.GuruID = G.GuruID
 JOIN Masters.Mapel M ON J.MapelID = M.MapelID
 JOIN Masters.Kelas K ON J.KelasID = K.KelasID
-ORDER BY G.NamaLengkap, J.Hari, J.JamMulai;
+ORDER BY J.Hari;
 
--- Nim: 20240140090
--- Nama: Fathur Rahman
 -- Tabel yang digunakan: Masters.User
 -- Skenario: Memonitor User dengan role Guru
 SELECT 
@@ -657,8 +647,6 @@ SELECT
 FROM Masters.[User]
 WHERE [Role] = 'Guru';
 
--- Nim: 20240140096
--- Nama: Haidar Yahya Mudhofar
 -- Tabel yang digunakan: Masters.Mapel
 -- Skenario: Memonitor Mapel yang tidak ada pada jadwal
 SELECT 
@@ -666,3 +654,41 @@ SELECT
 FROM Masters.Mapel M
 LEFT JOIN Transactions.Jadwal J ON M.MapelID = J.MapelID
 WHERE J.JadwalID IS NULL;
+
+-- Query berat berdasar rata-rata waktu eksekusi
+SELECT TOP 10
+    qs.total_elapsed_time / qs.execution_count AS AvgExecTime,
+    qs.execution_count,
+    qt.text AS QueryText
+FROM sys.dm_exec_query_stats qs
+CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt
+ORDER BY AvgExecTime DESC;
+
+-- Statistik I/O file database
+SELECT
+    DB_NAME(database_id) AS DatabaseName,
+    file_id,
+    io_stall_read_ms,
+    io_stall_write_ms,
+    num_of_reads,
+    num_of_writes
+FROM sys.dm_io_virtual_file_stats(NULL, NULL);
+
+-- Aktivitas disk terkait I/O wait stats
+SELECT *
+FROM sys.dm_os_wait_stats
+WHERE wait_type LIKE 'PAGEIOLATCH%';
+
+-- Statistik index pada tabel Mapel
+SELECT 
+    OBJECT_NAME(s.object_id) AS TableName,
+    i.name AS IndexName,
+    s.user_seeks,
+    s.user_scans,
+    s.user_lookups,
+    s.user_updates
+FROM sys.dm_db_index_usage_stats s
+JOIN sys.indexes i ON s.object_id = i.object_id AND s.index_id = i.index_id
+WHERE OBJECT_NAME(s.object_id) = 'Mapel'
+  AND s.database_id = DB_ID()
+ORDER BY s.user_seeks DESC;

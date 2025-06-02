@@ -594,92 +594,40 @@ CREATE INDEX IX_AuditLogs_ChangedBy ON AuditLogs(ChangedBy);
 -- SKENARIO QUERY PER TABEL (Per Anggota Kelompok)
 -- =============================================
 
--- Skenario 1 - Absensi
+-- Skenario: Memantau kehadiran Guru
 SELECT 
-	J.GuruID, G.NamaLengkap, COUNT(*) AS JumlahHadir,
-	COUNT(*) AS JumlahSakit,
-	COUNT(*) AS JumlahIzin,
-	COUNT(*) AS JumlahAlfa
+    J.GuruID, G.NamaLengkap,
+    COUNT(CASE WHEN A.Status = 'Hadir' THEN 1 ELSE 0 END) AS JumlahHadir,
+    COUNT(CASE WHEN A.Status = 'Sakit' THEN 1 ELSE 0 END) AS JumlahSakit,
+    COUNT(CASE WHEN A.Status = 'Izin' THEN 1 ELSE 0 END) AS JumlahIzin,
+    COUNT(CASE WHEN A.Status = 'Alfa' THEN 1 ELSE 0 END) AS JumlahAlfa
 FROM Transactions.Absensi A
 JOIN Transactions.Jadwal J ON A.JadwalID = J.JadwalID
 JOIN Masters.Guru G ON J.GuruID = G.GuruID
-WHERE A.Status = 'Hadir'
-  AND A.Tanggal BETWEEN '2010-05-01' AND '2024-05-31'
-GROUP BY J.GuruID, G.NamaLengkap
-HAVING COUNT(*) > 1;
+WHERE A.Tanggal BETWEEN '2010-05-01' AND '2024-05-31'
+GROUP BY J.GuruID, G.NamaLengkap;
 
-SELECT * FROM Transactions.Absensi A
-JOIN Transactions.Jadwal J ON A.JadwalID = J.JadwalID
-JOIN Masters.Guru ON J.GuruID = Masters.Guru.GuruID;
-
--- Skenario 2 - Guru
-SELECT G.GuruID, G.NamaLengkap
-FROM Masters.Guru G
-LEFT JOIN Transactions.Jadwal J ON G.GuruID = J.GuruID
-WHERE J.JadwalID IS NULL;
-
--- Skenario 3 - Mapel
-SELECT M.MapelID, M.Nama, COUNT(DISTINCT J.GuruID) AS JumlahGuru
-FROM Masters.Mapel M
-JOIN Transactions.Jadwal J ON M.MapelID = J.MapelID
-GROUP BY M.MapelID, M.Nama;
-
--- Skenario 4 - Jadwal
-SELECT *
-FROM Transactions.Jadwal
-WHERE Hari = 'Senin'
-  AND CAST(JamMulai AS TIME) < '09:00:00';
-
--- Query berat berdasar rata-rata waktu eksekusi
-SELECT TOP 5
-    qs.total_elapsed_time / qs.execution_count AS AvgExecTime,
-    qs.execution_count,
-    qt.text AS QueryText
-FROM sys.dm_exec_query_stats qs
-CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt
-ORDER BY AvgExecTime DESC;
-
--- Statistik I/O file database
-SELECT
-    DB_NAME(database_id) AS DatabaseName,
-    file_id,
-    io_stall_read_ms,
-    io_stall_write_ms,
-    num_of_reads,
-    num_of_writes
-FROM sys.dm_io_virtual_file_stats(NULL, NULL);
-
--- Aktivitas disk terkait I/O wait stats
-SELECT *
-FROM sys.dm_os_wait_stats
-WHERE wait_type LIKE 'PAGEIOLATCH%';
-
--- Statistik index pada tabel Mapel
+-- Skenario: Memantau penjadwalan guru
 SELECT 
-    OBJECT_NAME(s.object_id) AS TableName,
-    i.name AS IndexName,
-    s.user_seeks,
-    s.user_scans,
-    s.user_lookups,
-    s.user_updates
-FROM sys.dm_db_index_usage_stats s
-JOIN sys.indexes i ON s.object_id = i.object_id AND s.index_id = i.index_id
-WHERE OBJECT_NAME(s.object_id) = 'Mapel'
-  AND s.database_id = DB_ID()
-ORDER BY s.user_seeks DESC;
-
--- Data absensi Maret-April 2024
-SELECT 
-    A.AbsensiID, 
-    G.NamaLengkap, 
-    M.Nama AS Mapel, 
-    A.Tanggal, 
-    A.Status
-FROM Transactions.Absensi A
-JOIN Transactions.Jadwal J ON A.JadwalID = J.JadwalID
+    J.JadwalID, G.NamaLengkap, M.Nama AS Mapel, K.Nama AS Kelas, J.Hari, J.JamMulai, J.JamSelesai
+FROM Transactions.Jadwal J
 JOIN Masters.Guru G ON J.GuruID = G.GuruID
 JOIN Masters.Mapel M ON J.MapelID = M.MapelID
-WHERE A.Tanggal BETWEEN '2024-03-01' AND '2024-04-30';
+JOIN Masters.Kelas K ON J.KelasID = K.KelasID
+ORDER BY J.Hari;
+
+-- Skenario: Memonitor User dengan role Guru
+SELECT 
+    UserID, Nama, Email, [Role]
+FROM Masters.[User]
+WHERE [Role] = 'Guru';
+
+-- Skenario: Memonitor Mapel yang tidak ada pada jadwal
+SELECT 
+    M.MapelID, M.Nama
+FROM Masters.Mapel M
+LEFT JOIN Transactions.Jadwal J ON M.MapelID = J.MapelID
+WHERE J.JadwalID IS NULL;
 
 -- ngeliatin semua data
 SELECT * FROM Masters.[User];
