@@ -400,7 +400,32 @@ BEGIN CATCH
 	PRINT ERROR_MESSAGE();
 END CATCH;
 
--- Isolation: READ COMMITTED
+SELECT * FROM Masters.[User];
+
+-- Isolation
+-- READ UNCOMMITTED
+BEGIN TRY
+	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+	BEGIN TRANSACTION;
+
+	SELECT GuruID, UserID, NamaLengkap, NIP 
+	FROM Masters.Guru;
+	
+	INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
+	VALUES ('Masters.Guru', 'SUCCESS', 'SELECT', 'Data guru berhasil dibaca', SUSER_SNAME());
+
+	SELECT * FROM AuditLogs;
+
+	COMMIT;
+END TRY
+BEGIN CATCH
+	PRINT 'Terjadi kesalahan, melakukan rollback...';
+	ROLLBACK;
+
+	PRINT ERROR_MESSAGE();
+END CATCH;
+
+-- READ COMMITTED
 BEGIN TRY
 	SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 	BEGIN TRANSACTION;
@@ -418,6 +443,8 @@ BEGIN TRY
 		THROW 50000, 'Absensi sudah dilakukan hari ini', 1;
 	END
 
+	SELECT 1 FROM AuditLogs;
+
 	-- Tambah absensi jika belum ada
 	INSERT INTO Transactions.Absensi (JadwalID, Tanggal, Status)
 	VALUES (2, GETDATE(), 'Hadir');
@@ -433,23 +460,6 @@ BEGIN CATCH
 
 	PRINT ERROR_MESSAGE();
 END CATCH;
-
--- UNCOMMITTED
-BEGIN TRY
-	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-	BEGIN TRANSACTION;
-
-	SELECT GuruID, UserID, NamaLengkap, NIP 
-	FROM Masters.Guru;
-
-	COMMIT;
-END TRY
-BEGIN CATCH
-	PRINT 'Terjadi kesalahan, melakukan rollback...';
-	ROLLBACK;
-
-	PRINT ERROR_MESSAGE();
-END CATCH;
 
 -- REPEATABLE
 BEGIN TRY
