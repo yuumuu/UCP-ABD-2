@@ -92,16 +92,6 @@ CREATE TABLE Transactions.Jadwal (
 	FOREIGN KEY (KelasID) REFERENCES Masters.Kelas (KelasID)
 ) ON RG_Transaction;
 
--- Partition Function
-USE RuangGuru;
-CREATE PARTITION FUNCTION PF_AbsensiDate (DATETIME)
-AS RANGE LEFT FOR VALUES ('2019-12-31', '2024-12-31');
-
--- Partition Scheme
-CREATE PARTITION SCHEME PS_AbsensiScheme
-AS PARTITION PF_AbsensiDate
-TO (RG_Main, RG_Transaction, RG_Transaction);
-
 -- Absensi Table
 CREATE TABLE Transactions.Absensi (
 	AbsensiID INT IDENTITY(1,1) PRIMARY KEY,
@@ -110,7 +100,7 @@ CREATE TABLE Transactions.Absensi (
 	Status VARCHAR(10) CHECK (Status IN ('Hadir', 'Izin', 'Sakit', 'Alfa')),
 
 	FOREIGN KEY (JadwalID) REFERENCES Transactions.Jadwal (JadwalID)
-) ON PS_AbsensiScheme(Tanggal);
+) ON RG_Transaction;
 
 CREATE TABLE AuditLogs (
 	LogID INT IDENTITY(1,1) PRIMARY KEY,
@@ -143,26 +133,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::Masters.Mapel TO GuruRG;
 GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::Masters.Kelas TO GuruRG;
 GRANT SELECT ON SCHEMA::Transactions TO GuruRG;
 GRANT INSERT ON OBJECT::Transactions.Absensi TO GuruRG;
-
--- Backup Database
--- tambahkan data sebelum backup full
-INSERT INTO Transactions.Absensi
-VALUES
-(1, '2024-03-31', 'Izin'),
-(2, '2024-03-31', 'Hadir'),
-(1, '2024-04-06', 'Hadir'),
-(2, '2024-04-06', 'Hadir');
-
--- FULL BACKUP
-BACKUP DATABASE RuangGuru
-TO DISK = 'D:\Projects\databases\ABD UCP 2\Backup_RG_Full.bak'
-WITH INIT, FORMAT, NAME = 'Full Backup RuangGuru';
-
--- FULL RECOVERY
-RESTORE DATABASE RuangGuru
-FROM DISK = 'D:\Projects\databases\ABD UCP 2\Backup_RG_Full.bak'
-WITH NORECOVERY;
-
 
 -- Data Dummy
 -- SQL FILE buat nambah data Sistem RuangGuru
@@ -200,7 +170,26 @@ VALUES
 (1, '2024-03-24', 'Izin'),
 (2, '2024-03-24', 'Alfa');
 
+-- Backup Database
+-- tambahkan data sebelum backup full
+INSERT INTO Transactions.Absensi
+VALUES
+(1, '2024-03-31', 'Izin'),
+(2, '2024-03-31', 'Hadir'),
+(1, '2024-04-06', 'Hadir'),
+(2, '2024-04-06', 'Hadir');
 
+-- FULL BACKUP
+BACKUP DATABASE RuangGuru
+TO DISK = 'D:\Projects\databases\ABD UCP 2\Backup_RG_Full.bak'
+WITH INIT, FORMAT, NAME = 'Full Backup RuangGuru';
+GO
+-- FULL RECOVERY
+RESTORE DATABASE RuangGuru
+FROM DISK = 'D:\Projects\databases\ABD UCP 2\Backup_RG_Full.bak'
+WITH NORECOVERY;
+
+USE RuangGuru;
 -- tambahkan data sebelum backup diferensial
 INSERT INTO Transactions.Absensi
 VALUES
@@ -227,6 +216,8 @@ VALUES
 (1, '2024-05-04', 'Hadir'),
 (2, '2024-05-04', 'Sakit');
 
+ALTER DATABASE RuangGuru SET RECOVERY FULL;
+
 -- TRANSACTION LOG BACKUP
 BACKUP LOG RuangGuru
 TO DISK = 'D:\Projects\databases\ABD UCP 2\Backup_RG_Log.trn'
@@ -235,7 +226,9 @@ WITH INIT, NAME = 'Transaction Log Backup RuangGuru';
 -- TRANSACTION LOG RESTORE
 RESTORE LOG RuangGuru
 FROM DISK = 'D:\Projects\databases\ABD UCP 2\Backup_RG_Log.trn'
-WITH RECOVERY;
+WITH NORECOVERY;
+
+RESTORE DATABASE RuangGuru WITH RECOVERY;
 
 -- Pengaplikasian Transaction & Locking Mechanism
 -- Atomicity
@@ -272,8 +265,7 @@ BEGIN TRY
 
 	-- langkah 3 : commit klo berhasil
 	COMMIT;
-END TRY;
-
+END TRY
 BEGIN CATCH
 	-- langkah 4 : klo terjadi kesalahan, rollback dilakukan
 	PRINT 'Terjadi kesalahan, melakukan rollback...';
@@ -346,8 +338,7 @@ BEGIN TRY
 
 	-- commit
 	COMMIT;
-END TRY;
-
+END TRY
 BEGIN CATCH
 	-- klo terjadi kesalahan, rollback dilakukan
 	PRINT 'Terjadi kesalahan, melakukan rollback...';
@@ -361,7 +352,7 @@ END CATCH;
 -- 
 BEGIN TRY
 	-- Setting isolation level dan transaksi
-	SET TRANSACTION ISOLATION LEVEL READ SERIALIZABLE;
+	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 	BEGIN TRANSACTION;
 
 	IF EXISTS (SELECT 1 FROM Transactions.Absensi WHERE JadwalID = 1 AND Tanggal = CAST(GETDATE() AS DATE))
@@ -381,7 +372,6 @@ BEGIN TRY
 	-- Commit Transaksi
 	COMMIT;
 END TRY
-
 BEGIN CATCH
 	PRINT 'Terjadi kesalahan, melakukan rollback...';
 	ROLLBACK;
@@ -400,8 +390,7 @@ BEGIN TRY
 	VALUES ('Masters.User', 'SUCCESS', 'INSERT', 'User berhasil ditambahkan ke dalam sistem', SUSER_SNAME());
 
 	COMMIT;
-END TRY;
-
+END TRY
 BEGIN CATCH
 	PRINT 'Terjadi kesalahan, melakukan rollback...';
 	ROLLBACK;
@@ -439,7 +428,6 @@ BEGIN TRY
 
 	COMMIT;
 END TRY
-
 BEGIN CATCH
 	PRINT 'Terjadi kesalahan, melakukan rollback...';
 	ROLLBACK;
@@ -456,8 +444,7 @@ BEGIN TRY
 	FROM Masters.Guru;
 
 	COMMIT;
-END TRY;
-
+END TRY
 BEGIN CATCH
 	PRINT 'Terjadi kesalahan, melakukan rollback...';
 	ROLLBACK;
@@ -492,7 +479,6 @@ BEGIN TRY
 
 	COMMIT;
 END TRY
-
 BEGIN CATCH
 	PRINT 'Terjadi kesalahan, melakukan rollback...';
 	ROLLBACK;
@@ -503,7 +489,7 @@ END CATCH;
 -- SERIALIZABLE
 BEGIN TRY
 	-- Transaksi A
-	SET TRANSACTION ISOLATION LEVEL READ SERIALIZABLE;
+	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 	BEGIN TRANSACTION;
 
 	DECLARE @KelasID_SZ INT = 1;
@@ -519,8 +505,7 @@ BEGIN TRY
 	IF EXISTS(SELECT * FROM Masters.Guru WHERE GuruID = @GuruID_SZ)
 	BEGIN
 		UPDATE Transactions.Jadwal
-		SET GuruID = @GuruID_SZ
-		WHERE KelasID = @KelasID_SZ AND Hari = @HariIni_SZ AND (@JamMulai_SZ < JamSelesai AND @JamSelesai_SZ > JamMulai;
+		SET GuruID = @GuruID_SZ WHERE KelasID = @KelasID_SZ AND Hari = @HariIni_SZ AND (@JamMulai_SZ < JamSelesai AND @JamSelesai_SZ > JamMulai);
 		
 		INSERT INTO AuditLogs (TableName, [Status], ActionType, Detail, ChangedBy)
 		VALUES ('Transactions.Jadwal', 'SUCCESS', 'UPDATE', 
@@ -537,7 +522,7 @@ BEGIN TRY
 	COMMIT;
 
 	-- Transaksi B
-	SET TRANSACTION ISOLATION LEVEL READ SERIALIZABLE;
+	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 	BEGIN TRANSACTION;
 
 	IF NOT EXISTS (
@@ -562,14 +547,22 @@ BEGIN TRY
 		THROW 50000, 'Transaksi Insert data Jadwal gagal dijalankan', 1;
 	END
 	COMMIT;
-END TRY;
-
+END TRY
 BEGIN CATCH
 	PRINT 'Terjadi kesalahan, melakukan rollback...';
 	ROLLBACK;
 
 	PRINT ERROR_MESSAGE();
 END CATCH;
+
+SELECT *
+FROM 
+	sys.indexes i
+	INNER JOIN sys.tables t ON i.object_id = t.object_id
+WHERE 
+	t.is_ms_shipped = 0
+ORDER BY 
+	t.name, i.name;
 
 -- Monitoring & Optimasi Performa Database
 -- Index Guru - Clustered
@@ -583,19 +576,32 @@ CREATE NONCLUSTERED INDEX IDX_Jadwal_Mapel_Kelas_Hari ON Transactions.Jadwal (Ma
 
 -- Index Absensi - Covering
 CREATE NONCLUSTERED INDEX IDX_Absensi_Jadwal_Tanggal ON Transactions.Absensi (JadwalID, Tanggal) INCLUDE ([Status]) ON PS_AbsensiScheme (Tanggal);
+
+-- Index AuditLogs
+CREATE INDEX IX_AuditLogs_ChangeDate ON AuditLogs(ChangeDate);
+CREATE INDEX IX_AuditLogs_ChangedBy ON AuditLogs(ChangedBy);
+
 -- =============================================
 -- SKENARIO QUERY PER TABEL (Per Anggota Kelompok)
 -- =============================================
 
 -- Skenario 1 - Absensi
-SELECT J.GuruID, G.NamaLengkap, COUNT(*) AS JumlahAlfa
+SELECT 
+	J.GuruID, G.NamaLengkap, COUNT(*) AS JumlahHadir,
+	COUNT(*) AS JumlahSakit,
+	COUNT(*) AS JumlahIzin,
+	COUNT(*) AS JumlahAlfa
 FROM Transactions.Absensi A
 JOIN Transactions.Jadwal J ON A.JadwalID = J.JadwalID
 JOIN Masters.Guru G ON J.GuruID = G.GuruID
-WHERE A.Status = 'Alfa'
-  AND A.Tanggal BETWEEN '2024-05-01' AND '2024-05-31'
+WHERE A.Status = 'Hadir'
+  AND A.Tanggal BETWEEN '2010-05-01' AND '2024-05-31'
 GROUP BY J.GuruID, G.NamaLengkap
-HAVING COUNT(*) > 3;
+HAVING COUNT(*) > 1;
+
+SELECT * FROM Transactions.Absensi A
+JOIN Transactions.Jadwal J ON A.JadwalID = J.JadwalID
+JOIN Masters.Guru ON J.GuruID = Masters.Guru.GuruID;
 
 -- Skenario 2 - Guru
 SELECT G.GuruID, G.NamaLengkap
@@ -612,7 +618,7 @@ GROUP BY M.MapelID, M.Nama;
 -- Skenario 4 - Jadwal
 SELECT *
 FROM Transactions.Jadwal
-WHERE DATENAME(WEEKDAY, JamMulai) = 'Senin'
+WHERE Hari = 'Senin'
   AND CAST(JamMulai AS TIME) < '09:00:00';
 
 -- =============================================
@@ -669,3 +675,4 @@ JOIN Transactions.Jadwal J ON A.JadwalID = J.JadwalID
 JOIN Masters.Guru G ON J.GuruID = G.GuruID
 JOIN Masters.Mapel M ON J.MapelID = M.MapelID
 WHERE A.Tanggal BETWEEN '2024-03-01' AND '2024-04-30';
+
