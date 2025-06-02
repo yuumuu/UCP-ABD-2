@@ -692,3 +692,12 @@ JOIN sys.indexes i ON s.object_id = i.object_id AND s.index_id = i.index_id
 WHERE OBJECT_NAME(s.object_id) = 'Mapel'
   AND s.database_id = DB_ID()
 ORDER BY s.user_seeks DESC;
+
+-- ngeliatin semua data
+SELECT * FROM Masters.[User];
+SELECT * FROM Masters.Guru;
+SELECT * FROM Masters.Mapel;
+SELECT * FROM Masters.Kelas;
+SELECT * FROM Transactions.Jadwal;
+SELECT * FROM Transactions.Absensi;
+SELECT * FROM AuditLogs;
